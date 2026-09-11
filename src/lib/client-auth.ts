@@ -20,7 +20,12 @@ export function clearToken(): void {
   window.sessionStorage.removeItem(TOKEN_KEY);
 }
 
-export function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  // Offline store first — when it handles the request, no network call is made.
+  const { mockFetch } = await import("@/lib/mock-backend");
+  const mocked = await mockFetch(input, init);
+  if (mocked) return mocked;
+
   const token = getToken();
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);

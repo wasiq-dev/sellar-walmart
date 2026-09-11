@@ -1,26 +1,44 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { login } from "@/app/actions/auth";
 import { FormError } from "@/components/ui/fields";
 import { useAuth } from "@/hooks/useAuth";
+import { LoginSchema, fieldErrors } from "@/lib/definitions";
+import { signIn, DUMMY_TOKEN } from "@/lib/mock-db";
+
+type State = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+};
 
 export default function LoginForm() {
-  const [state, action, pending] = useActionState(login, undefined);
+  const [state, setState] = useState<State>({});
+  const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const auth = useAuth();
 
-  useEffect(() => {
-    if (state?.token && state.user) {
-      auth.login(state.token, state.user);
-      router.push("/");
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPending(true);
+    const fd = new FormData(e.currentTarget);
+    const parsed = LoginSchema.safeParse({
+      email: fd.get("email"),
+      password: fd.get("password"),
+    });
+    if (!parsed.success) {
+      setState({ errors: fieldErrors(parsed.error) });
+      setPending(false);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+    // Offline: any valid-looking credentials sign you in.
+    const user = signIn(parsed.data.email);
+    auth.login(DUMMY_TOKEN, user);
+    router.push("/");
+  }
 
   return (
     <div>
@@ -28,8 +46,8 @@ export default function LoginForm() {
         Welcome!
       </h1>
 
-      <form action={action} className="flex flex-col gap-5">
-        <FormError message={state?.message} />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <FormError message={state.message} />
 
         <div>
           <label htmlFor="email" className="mb-1.5 block text-sm font-bold text-[#2a2a2a]">
@@ -41,10 +59,10 @@ export default function LoginForm() {
             type="text"
             autoComplete="username"
             required
-            aria-invalid={Boolean(state?.errors?.email)}
+            aria-invalid={Boolean(state.errors?.email)}
             className="w-full rounded-md border border-slate-300 px-3 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-wm-blue focus:ring-2 focus:ring-wm-blue/30"
           />
-          {state?.errors?.email?.[0] && (
+          {state.errors?.email?.[0] && (
             <p className="mt-1 text-xs text-rose-600">{state.errors.email[0]}</p>
           )}
         </div>
@@ -60,7 +78,7 @@ export default function LoginForm() {
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
-              aria-invalid={Boolean(state?.errors?.password)}
+              aria-invalid={Boolean(state.errors?.password)}
               className="w-full rounded-md border border-slate-300 px-3 py-3 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-wm-blue focus:ring-2 focus:ring-wm-blue/30"
             />
             <button
@@ -77,7 +95,7 @@ export default function LoginForm() {
               )}
             </button>
           </div>
-          {state?.errors?.password?.[0] && (
+          {state.errors?.password?.[0] && (
             <p className="mt-1 text-xs text-rose-600">
               {state.errors.password[0]}
             </p>

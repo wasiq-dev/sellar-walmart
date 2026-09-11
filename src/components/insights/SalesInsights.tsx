@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import type { DashboardData, MetricKey } from "@/lib/queries";
+import { generateOrders } from "@/lib/mock-db";
+import { showToast } from "@/lib/toast";
 import KpiBar from "@/components/insights/KpiBar";
 import AccountSalesChart from "@/components/insights/AccountSalesChart";
 import DateRangePicker from "@/components/insights/DateRangePicker";
@@ -62,6 +64,24 @@ export default function SalesInsights({
 }) {
   const [tab, setTab] = useState<Tab>("account");
   const [metric, setMetric] = useState<MetricKey>("gmv");
+  const lastTap = useRef(0);
+
+  // Hidden shortcut: double-tap / double-click the section heading to refresh
+  // the generated sales dataset. The store fires "wm-demo-change" on write, so
+  // useProtectedFetch re-pulls and every number here updates.
+  function regenerate() {
+    generateOrders();
+    showToast("Sales data refreshed ✨");
+  }
+  function onHeadingTap() {
+    const now = Date.now();
+    if (now - lastTap.current < 400) {
+      lastTap.current = 0;
+      regenerate();
+    } else {
+      lastTap.current = now;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -96,7 +116,11 @@ export default function SalesInsights({
         <>
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2
+                className="select-none text-lg font-bold text-slate-900"
+                onDoubleClick={regenerate}
+                onTouchEnd={onHeadingTap}
+              >
                 Account sales summary
               </h2>
 

@@ -54,5 +54,13 @@ export function useProtectedFetch<T>(path: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, tick]);
 
+  // The offline store fires this whenever it's written to (e.g. orders
+  // generated) — re-pull so the page reflects the new data immediately.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.addEventListener("wm-demo-change", refetch);
+    return () => window.removeEventListener("wm-demo-change", refetch);
+  }, [refetch]);
+
   return { data, loading, error, refetch };
 }
